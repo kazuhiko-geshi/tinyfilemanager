@@ -325,14 +325,17 @@ if ($use_auth) {
     if (isset($_SESSION[FM_SESSION_ID]['logged'], $auth_users[$_SESSION[FM_SESSION_ID]['logged']])) {
         // Logged
     } else {
+        trigger_error($_SESSION[FM_SESSION_ID]['logged']);
         if($use_auth_remote_user){
             if(getenv('REMOTE_USER')){
                 $_SESSION[FM_SESSION_ID]['logged'] = getenv('REMOTE_USER');
                 fm_set_msg(lng('You are logged in with REMOTE_USER'));
+                trigger_error('You are logged in with REMOTE_USER');
                 fm_redirect(FM_SELF_URL);
             } else {
                 unset($_SESSION[FM_SESSION_ID]['logged']);
                 fm_set_msg(lng('Login failed. empty REMOTE_USER'), 'error');
+                trigger_error('Login failed. empty REMOTE_USER');
                 fm_redirect(FM_SELF_URL);
             }
         } else {
