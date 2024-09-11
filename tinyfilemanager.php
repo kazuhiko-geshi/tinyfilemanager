@@ -322,24 +322,27 @@ if ($ip_ruleset != 'OFF') {
 
 // Checking if the user is logged in or not. If not, it will show the login form.
 if ($use_auth) {
-    if (isset($_SESSION[FM_SESSION_ID]['logged'], $auth_users[$_SESSION[FM_SESSION_ID]['logged']])) {
-        // Logged
-    } else {
-        trigger_error($_SESSION[FM_SESSION_ID]['logged']);
+    $user_folder_arr = null;
         if($use_auth_remote_user){
-            if(getenv('REMOTE_USER')){
+        //ログインしているユーザーを調べる
+        //そのユーザーの設定ファイルが読み込み可能かを調べる
+        $remote_user_conf_dir = "/etc/tinyfilemanager/acl/";
+        $user_folders = file_get_contents ($remote_user_conf_dir . getenv('REMOTE_USER') );
+        // trigger_error($user_folders);
+
+        //読み込めなければエラーでリダイレクト（403ページ？）
+        if(!$user_folders){
+            print("invalid user");
+            exit(1);
+        }
+        //設定ファイルを読み、アクセスできるフォルダ一覧を取得
+        $user_folder_arr = explode("\n", $user_folders);
                 $_SESSION[FM_SESSION_ID]['logged'] = getenv('REMOTE_USER');
-                fm_set_msg(lng('You are logged in with REMOTE_USER'));
-                trigger_error('You are logged in with REMOTE_USER');
-                fm_redirect(FM_SELF_URL);
+
             } else {
-                unset($_SESSION[FM_SESSION_ID]['logged']);
-                fm_set_msg(lng('Login failed. empty REMOTE_USER'), 'error');
-                trigger_error('Login failed. empty REMOTE_USER');
-                fm_redirect(FM_SELF_URL);
-            }
-        } else {
-            if (isset($_POST['fm_usr'], $_POST['fm_pwd'], $_POST['token'])) {
+	    if (isset($_SESSION[FM_SESSION_ID]['logged'], $auth_users[$_SESSION[FM_SESSION_ID]['logged']])) {
+            // Logged
+        } elseif (isset($_POST['fm_usr'], $_POST['fm_pwd'], $_POST['token'])) {
                 // Logging In
                 sleep(1);
                 if(function_exists('password_verify')) {
@@ -418,7 +421,6 @@ if ($use_auth) {
             }
         }
     }
-}
 
 // update root path
 if ($use_auth && isset($_SESSION[FM_SESSION_ID]['logged'])) {
