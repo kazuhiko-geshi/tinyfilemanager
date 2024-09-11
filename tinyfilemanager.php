@@ -3764,7 +3764,7 @@ $isStickyNavBar = $sticky_navbar ? 'navbar-fixed' : 'navbar-normal';
         a, a:hover, a:visited, a:focus { text-decoration:none !important; }
         .filename, td, th { white-space:nowrap  }
         .navbar-brand { font-weight:bold; }
-        .nav-item.avatar a { cursor:pointer;text-transform:capitalize; }
+        .nav-item.avatar a { cursor:pointer; }
         .nav-item.avatar a > i { font-size:15px; }
         .nav-item.avatar .dropdown-menu a { font-size:13px; }
         #search-addon { font-size:12px;border-right-width:0; }
