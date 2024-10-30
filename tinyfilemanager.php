@@ -323,104 +323,135 @@ if ($ip_ruleset != 'OFF') {
 // Checking if the user is logged in or not. If not, it will show the login form.
 if ($use_auth) {
     $user_folder_arr = null;
-        if($use_auth_remote_user){
-        //ログインしているユーザーを調べる
-        //そのユーザーの設定ファイルが読み込み可能かを調べる
-        $remote_user_conf_dir = "/etc/tinyfilemanager/acl/";
-        $user_folders = file_get_contents ($remote_user_conf_dir . getenv('REMOTE_USER') );
-        // trigger_error($user_folders);
+    if($use_auth_remote_user){
+        function get_user_folder_arr(){
+            //ログインしているユーザーを調べる
+            //そのユーザーの設定ファイルが読み込み可能かを調べる
+            $remote_user_conf_dir = "/etc/tinyfilemanager/acl/";
+            $user_conf_text = file_get_contents ($remote_user_conf_dir . getenv('REMOTE_USER') );
+            // trigger_error($user_conf_text);
 
-        //読み込めなければエラーでリダイレクト（403ページ？）
-        if(!$user_folders){
-            print("invalid user");
+            //読み込めなければエラーでリダイレクト（403ページ？）
+            if(!$user_conf_text){
+                print("invalid user");
+                exit(1);
+            }
+            //設定ファイルを読み、アクセスできるフォルダ一覧を取得
+            $user_conf = explode("\n", $user_conf_text);
+            $user_folder_arr = [];
+            $err_message = "";
+            foreach ($user_conf as $key => $value) {
+                //#で始まるコメント行は無視
+                if(substr($value, 0, 1) == '#'){
+                    trigger_error("found comment line: $value");
+                    continue;
+                }
+                if($value == ""){
+                    continue;
+                }
+                if(substr($value, 0, 1) == '/' && substr($value, -1, 1) == '/' && substr_count($value, "/")==2){
+                    $user_folder_arr[]=$value;
+                }else{
+                    $err_message .= "<br />" . $value;
+                }
+            }
+            if($err_message){
+                fm_set_msg("invalid configuration: " .$err_message, 'error');
+            }
+
+            return $user_folder_arr;
+        }
+
+        $user_folder_arr = get_user_folder_arr();
+        if(empty($user_folder_arr)){
+            print("access forbidden");
             exit(1);
         }
-        //設定ファイルを読み、アクセスできるフォルダ一覧を取得
-        $user_folder_arr = explode("\n", $user_folders);
-                $_SESSION[FM_SESSION_ID]['logged'] = getenv('REMOTE_USER');
 
-            } else {
+        $_SESSION[FM_SESSION_ID]['logged'] = getenv('REMOTE_USER');
+
+    } else {
 	    if (isset($_SESSION[FM_SESSION_ID]['logged'], $auth_users[$_SESSION[FM_SESSION_ID]['logged']])) {
             // Logged
         } elseif (isset($_POST['fm_usr'], $_POST['fm_pwd'], $_POST['token'])) {
-                // Logging In
-                sleep(1);
-                if(function_exists('password_verify')) {
-                    if (isset($auth_users[$_POST['fm_usr']]) && isset($_POST['fm_pwd']) && password_verify($_POST['fm_pwd'], $auth_users[$_POST['fm_usr']]) && verifyToken($_POST['token'])) {
-                        $_SESSION[FM_SESSION_ID]['logged'] = $_POST['fm_usr'];
-                        fm_set_msg(lng('You are logged in'));
-                        fm_redirect(FM_SELF_URL);
-                    } else {
-                        unset($_SESSION[FM_SESSION_ID]['logged']);
-                        fm_set_msg(lng('Login failed. Invalid username or password'), 'error');
-                        fm_redirect(FM_SELF_URL);
-                    }
+            // Logging In
+            sleep(1);
+            if(function_exists('password_verify')) {
+                if (isset($auth_users[$_POST['fm_usr']]) && isset($_POST['fm_pwd']) && password_verify($_POST['fm_pwd'], $auth_users[$_POST['fm_usr']]) && verifyToken($_POST['token'])) {
+                    $_SESSION[FM_SESSION_ID]['logged'] = $_POST['fm_usr'];
+                    fm_set_msg(lng('You are logged in'));
+                    fm_redirect(FM_SELF_URL);
                 } else {
-                    fm_set_msg(lng('password_hash not supported, Upgrade PHP version'), 'error');;
+                    unset($_SESSION[FM_SESSION_ID]['logged']);
+                    fm_set_msg(lng('Login failed. Invalid username or password'), 'error');
+                    fm_redirect(FM_SELF_URL);
                 }
             } else {
-                // Form
-                unset($_SESSION[FM_SESSION_ID]['logged']);
-                fm_show_header_login();
-                ?>
-                <section class="h-100">
-                    <div class="container h-100">
-                        <div class="row justify-content-md-center h-100">
-                            <div class="card-wrapper">
-                                <div class="card fat <?php echo fm_get_theme(); ?>">
-                                    <div class="card-body">
-                                        <form class="form-signin" action="" method="post" autocomplete="off">
-                                            <div class="mb-3">
-                                            <div class="brand">
-                                                    <svg version="1.0" xmlns="http://www.w3.org/2000/svg" M1008 width="100%" height="80px" viewBox="0 0 238.000000 140.000000" aria-label="H3K Tiny File Manager">
-                                                        <g transform="translate(0.000000,140.000000) scale(0.100000,-0.100000)" fill="#000000" stroke="none">
-                                                            <path d="M160 700 l0 -600 110 0 110 0 0 260 0 260 70 0 70 0 0 -260 0 -260 110 0 110 0 0 600 0 600 -110 0 -110 0 0 -260 0 -260 -70 0 -70 0 0 260 0 260 -110 0 -110 0 0 -600z"/>
-                                                            <path fill="#003500" d="M1008 1227 l-108 -72 0 -117 0 -118 110 0 110 0 0 110 0 110 70 0 70 0 0 -180 0 -180 -125 0 c-69 0 -125 -3 -125 -6 0 -3 23 -39 52 -80 l52 -74 73 0 73 0 0 -185 0 -185 -70 0 -70 0 0 115 0 115 -110 0 -110 0 0 -190 0 -190 181 0 181 0 109 73 108 72 1 181 0 181 -69 48 -68 49 68 50 69 49 0 249 0 248 -182 -1 -183 0 -107 -72z"/>
-                                                            <path d="M1640 700 l0 -600 110 0 110 0 0 208 0 208 35 34 35 34 35 -34 35 -34 0 -208 0 -208 110 0 110 0 0 212 0 213 -87 87 -88 88 88 88 87 87 0 213 0 212 -110 0 -110 0 0 -208 0 -208 -70 -69 -70 -69 0 277 0 277 -110 0 -110 0 0 -600z"/></g>
-                                                    </svg>
-                                                </div>
-                                                <div class="text-center">
-                                                    <h1 class="card-title"><?php echo APP_TITLE; ?></h1>
-                                                </div>
+                fm_set_msg(lng('password_hash not supported, Upgrade PHP version'), 'error');;
+            }
+        } else {
+            // Form
+            unset($_SESSION[FM_SESSION_ID]['logged']);
+            fm_show_header_login();
+            ?>
+            <section class="h-100">
+                <div class="container h-100">
+                    <div class="row justify-content-md-center h-100">
+                        <div class="card-wrapper">
+                            <div class="card fat <?php echo fm_get_theme(); ?>">
+                                <div class="card-body">
+                                    <form class="form-signin" action="" method="post" autocomplete="off">
+                                        <div class="mb-3">
+                                        <div class="brand">
+                                                <svg version="1.0" xmlns="http://www.w3.org/2000/svg" M1008 width="100%" height="80px" viewBox="0 0 238.000000 140.000000" aria-label="H3K Tiny File Manager">
+                                                    <g transform="translate(0.000000,140.000000) scale(0.100000,-0.100000)" fill="#000000" stroke="none">
+                                                        <path d="M160 700 l0 -600 110 0 110 0 0 260 0 260 70 0 70 0 0 -260 0 -260 110 0 110 0 0 600 0 600 -110 0 -110 0 0 -260 0 -260 -70 0 -70 0 0 260 0 260 -110 0 -110 0 0 -600z"/>
+                                                        <path fill="#003500" d="M1008 1227 l-108 -72 0 -117 0 -118 110 0 110 0 0 110 0 110 70 0 70 0 0 -180 0 -180 -125 0 c-69 0 -125 -3 -125 -6 0 -3 23 -39 52 -80 l52 -74 73 0 73 0 0 -185 0 -185 -70 0 -70 0 0 115 0 115 -110 0 -110 0 0 -190 0 -190 181 0 181 0 109 73 108 72 1 181 0 181 -69 48 -68 49 68 50 69 49 0 249 0 248 -182 -1 -183 0 -107 -72z"/>
+                                                        <path d="M1640 700 l0 -600 110 0 110 0 0 208 0 208 35 34 35 34 35 -34 35 -34 0 -208 0 -208 110 0 110 0 0 212 0 213 -87 87 -88 88 88 88 87 87 0 213 0 212 -110 0 -110 0 0 -208 0 -208 -70 -69 -70 -69 0 277 0 277 -110 0 -110 0 0 -600z"/></g>
+                                                </svg>
                                             </div>
-                                            <hr />
-                                            <div class="mb-3">
-                                                <label for="fm_usr" class="pb-2"><?php echo lng('Username'); ?></label>
-                                                <input type="text" class="form-control" id="fm_usr" name="fm_usr" required autofocus>
+                                            <div class="text-center">
+                                                <h1 class="card-title"><?php echo APP_TITLE; ?></h1>
                                             </div>
-        
-                                            <div class="mb-3">
-                                                <label for="fm_pwd" class="pb-2"><?php echo lng('Password'); ?></label>
-                                                <input type="password" class="form-control" id="fm_pwd" name="fm_pwd" required>
-                                            </div>
-        
-                                            <div class="mb-3">
-                                                <?php fm_show_message(); ?>
-                                            </div>
-                                            <input type="hidden" name="token" value="<?php echo htmlentities($_SESSION['token']); ?>" />
-                                            <div class="mb-3">
-                                                <button type="submit" class="btn btn-success btn-block w-100 mt-4" role="button">
-                                                    <?php echo lng('Login'); ?>
-                                                </button>
-                                            </div>
-                                        </form>
-                                    </div>
+                                        </div>
+                                        <hr />
+                                        <div class="mb-3">
+                                            <label for="fm_usr" class="pb-2"><?php echo lng('Username'); ?></label>
+                                            <input type="text" class="form-control" id="fm_usr" name="fm_usr" required autofocus>
+                                        </div>
+    
+                                        <div class="mb-3">
+                                            <label for="fm_pwd" class="pb-2"><?php echo lng('Password'); ?></label>
+                                            <input type="password" class="form-control" id="fm_pwd" name="fm_pwd" required>
+                                        </div>
+    
+                                        <div class="mb-3">
+                                            <?php fm_show_message(); ?>
+                                        </div>
+                                        <input type="hidden" name="token" value="<?php echo htmlentities($_SESSION['token']); ?>" />
+                                        <div class="mb-3">
+                                            <button type="submit" class="btn btn-success btn-block w-100 mt-4" role="button">
+                                                <?php echo lng('Login'); ?>
+                                            </button>
+                                        </div>
+                                    </form>
                                 </div>
-                                <div class="footer text-center">
-                                    &mdash;&mdash; &copy;
-                                    <a href="https://tinyfilemanager.github.io/" target="_blank" class="text-decoration-none text-muted" data-version="<?php echo VERSION; ?>">CCP Programmers</a> &mdash;&mdash;
-                                </div>
+                            </div>
+                            <div class="footer text-center">
+                                &mdash;&mdash; &copy;
+                                <a href="https://tinyfilemanager.github.io/" target="_blank" class="text-decoration-none text-muted" data-version="<?php echo VERSION; ?>">CCP Programmers</a> &mdash;&mdash;
                             </div>
                         </div>
                     </div>
-                </section>
-        
-                <?php
-                fm_show_footer_login();
-                exit;
-            }
+                </div>
+            </section>
+    
+            <?php
+            fm_show_footer_login();
+            exit;
         }
     }
+}
 
 // update root path
 if ($use_auth && isset($_SESSION[FM_SESSION_ID]['logged'])) {
@@ -455,7 +486,6 @@ $p = isset($_GET['p']) ? $_GET['p'] : (isset($_POST['p']) ? $_POST['p'] : '');
 
 // clean path
 $p = fm_clean_path($p);
-
 // for ajax request - save
 $input = file_get_contents('php://input');
 $_POST = (strpos($input, 'ajax') != FALSE && strpos($input, 'save') != FALSE) ? json_decode($input, true) : $_POST;
@@ -473,6 +503,11 @@ unset($p, $use_auth, $iconv_input_encoding, $use_highlightjs, $highlightjs_style
 
 /*************************** ACTIONS ***************************/
 
+$path = FM_ROOT_PATH;
+if (FM_PATH != '') {
+    $path .=  '/' . FM_PATH;
+}
+my_scandir($path, FM_ROOT_PATH, $user_folder_arr); #check acl
 // Handle all AJAX Request
 if ((isset($_SESSION[FM_SESSION_ID]['logged'], $auth_users[$_SESSION[FM_SESSION_ID]['logged']]) || !FM_USE_AUTH) && isset($_POST['ajax'], $_POST['token']) && !FM_READONLY) {
     if(!verifyToken($_POST['token'])) {
@@ -690,6 +725,7 @@ if (isset($_GET['del'], $_POST['token']) && !FM_READONLY) {
         if (FM_PATH != '') {
             $path .= '/' . FM_PATH;
         }
+        my_scandir($path . '/' . $del, $root_path, $user_folder_arr); #check acl
         $is_dir = is_dir($path . '/' . $del);
         if (fm_rdelete($path . '/' . $del)) {
             $msg = $is_dir ? lng('Folder').' <b>%s</b> '.lng('Deleted') : lng('File').' <b>%s</b> '.lng('Deleted');
@@ -975,6 +1011,7 @@ if (!empty($_FILES) && !FM_READONLY) {
     }
 
     $targetPath = $path . $ds;
+    my_scandir($targetPath, $root_path, $user_folder_arr); #check acl
     if ( is_writable($targetPath) ) {
         $fullPath = $path . '/' . $fullPathInput;
         $folder = substr($fullPath, 0, strrpos($fullPath, "/"));
@@ -1311,7 +1348,7 @@ if (!is_dir($path)) {
 // get parent folder
 $parent = fm_get_parent_path(FM_PATH);
 
-$objects = is_readable($path) ? scandir($path) : array();
+$objects = is_readable($path) ? my_scandir($path, $root_path, $user_folder_arr) : array();
 $folders = array();
 $files = array();
 $current_path = array_slice(explode("/",$path), -1)[0];
@@ -1330,6 +1367,30 @@ if (is_array($objects) && fm_is_exclude_items($current_path)) {
             $folders[] = $file;
         }
     }
+}
+
+function my_scandir($path, $root_path, $user_folder_arr){
+
+    if(!$user_folder_arr){
+        return scandir($path);
+    }
+
+    if($path==$root_path){
+        return $user_folder_arr;
+	}else{
+        trigger_error("##my_scandir 1#" . $path); // /var/www/html/user1/sub1
+        trigger_error("##my_scandir 2#" . $root_path);  // /var/www/html
+
+        foreach ($user_folder_arr as $user_folder) {
+            trigger_error("##my_scandir 3#" . $user_folder);
+            trigger_error("##my_scandir 4#" . $root_path.$user_folder);
+            if (strpos($path."/", $root_path.$user_folder)===0){
+                return scandir($path);    
+            }
+        }
+        print("invalid access");
+        exit(1);
+	}
 }
 
 if (!empty($files)) {
