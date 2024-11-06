@@ -793,6 +793,7 @@ if (isset($_GET['copy'], $_GET['finish']) && !FM_READONLY) {
     if (FM_PATH != '') {
         $dest .= '/' . FM_PATH;
     }
+    my_scandir($dest, $user_folder_arr); // #check acl
     $dest .= '/' . basename($from);
     // move?
     $move = isset($_GET['move']);
