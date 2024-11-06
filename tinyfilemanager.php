@@ -507,7 +507,9 @@ $path = FM_ROOT_PATH;
 if (FM_PATH != '') {
     $path .=  '/' . FM_PATH;
 }
-my_scandir($path, FM_ROOT_PATH, $user_folder_arr); #check acl
+//Confirmation only
+my_scandir($path, $user_folder_arr); #check acl
+
 // Handle all AJAX Request
 if ((isset($_SESSION[FM_SESSION_ID]['logged'], $auth_users[$_SESSION[FM_SESSION_ID]['logged']]) || !FM_USE_AUTH) && isset($_POST['ajax'], $_POST['token']) && !FM_READONLY) {
     if(!verifyToken($_POST['token'])) {
@@ -725,7 +727,6 @@ if (isset($_GET['del'], $_POST['token']) && !FM_READONLY) {
         if (FM_PATH != '') {
             $path .= '/' . FM_PATH;
         }
-        my_scandir($path . '/' . $del, $root_path, $user_folder_arr); #check acl
         $is_dir = is_dir($path . '/' . $del);
         if (fm_rdelete($path . '/' . $del)) {
             $msg = $is_dir ? lng('Folder').' <b>%s</b> '.lng('Deleted') : lng('File').' <b>%s</b> '.lng('Deleted');
@@ -1011,7 +1012,6 @@ if (!empty($_FILES) && !FM_READONLY) {
     }
 
     $targetPath = $path . $ds;
-    my_scandir($targetPath, $root_path, $user_folder_arr); #check acl
     if ( is_writable($targetPath) ) {
         $fullPath = $path . '/' . $fullPathInput;
         $folder = substr($fullPath, 0, strrpos($fullPath, "/"));
@@ -1348,7 +1348,7 @@ if (!is_dir($path)) {
 // get parent folder
 $parent = fm_get_parent_path(FM_PATH);
 
-$objects = is_readable($path) ? my_scandir($path, $root_path, $user_folder_arr) : array();
+$objects = is_readable($path) ? my_scandir($path, $user_folder_arr) : array();
 $folders = array();
 $files = array();
 $current_path = array_slice(explode("/",$path), -1)[0];
@@ -1369,22 +1369,20 @@ if (is_array($objects) && fm_is_exclude_items($current_path)) {
     }
 }
 
-function my_scandir($path, $root_path, $user_folder_arr){
+function my_scandir($path, $user_folder_arr){
 
     if(!$user_folder_arr){
         return scandir($path);
     }
 
-    if($path==$root_path){
+    if($path==FM_ROOT_PATH){
         return $user_folder_arr;
 	}else{
-        trigger_error("##my_scandir 1#" . $path); // /var/www/html/user1/sub1
-        trigger_error("##my_scandir 2#" . $root_path);  // /var/www/html
+        trigger_error('##my_scandir $path=' . $path. '#FM_ROOT_PATH=' . FM_ROOT_PATH); // /var/www/html/user1/sub1
 
         foreach ($user_folder_arr as $user_folder) {
-            trigger_error("##my_scandir 3#" . $user_folder);
-            trigger_error("##my_scandir 4#" . $root_path.$user_folder);
-            if (strpos($path."/", $root_path.$user_folder)===0){
+            trigger_error('##my_scandir $user_folder=' . $user_folder);
+            if (strpos($path."/", FM_ROOT_PATH.$user_folder)===0){
                 return scandir($path);    
             }
         }
