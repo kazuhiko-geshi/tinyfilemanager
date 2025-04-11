@@ -325,23 +325,18 @@ if ($use_auth) {
     $user_folder_arr = null;
     if($use_auth_remote_user){
         function get_user_folder_arr(){
-            //ログインしているユーザーを調べる
-            //そのユーザーの設定ファイルが読み込み可能かを調べる
             $remote_user_conf_dir = "/etc/tinyfilemanager/acl/";
             $user_conf_text = file_get_contents ($remote_user_conf_dir . getenv('REMOTE_USER') );
-            // trigger_error($user_conf_text);
 
-            //読み込めなければエラーでリダイレクト（403ページ？）
+            //todo: 読み込めなければエラーでリダイレクト（403ページ？）
             if(!$user_conf_text){
-                print("invalid user");
-                exit(1);
+                #print("invalid user");
+                #exit(1);
+                return [];
             }
-            //設定ファイルを読み、アクセスできるフォルダ一覧を取得
             $user_conf = explode("\n", $user_conf_text);
             $user_folder_arr = [];
-            $err_message = "";
             foreach ($user_conf as $key => $value) {
-                //#で始まるコメント行は無視
                 if(substr($value, 0, 1) == '#'){
                     trigger_error("found comment line: $value");
                     continue;
@@ -352,20 +347,15 @@ if ($use_auth) {
                 if(substr($value, 0, 1) == '/' && substr($value, -1, 1) == '/' && substr_count($value, "/")==2){
                     $user_folder_arr[]=$value;
                 }else{
-                    $err_message .= "<br />" . $value;
+                    trigger_error("invalid configuration: " .$value, E_USER_WARNING);
                 }
             }
-            if($err_message){
-                fm_set_msg("invalid configuration: " .$err_message, 'error');
-            }
-
             return $user_folder_arr;
         }
 
         $user_folder_arr = get_user_folder_arr();
         if(empty($user_folder_arr)){
-            print("access forbidden");
-            exit(1);
+            fm_set_msg("Error in acl file.", 'error');
         }
 
         $_SESSION[FM_SESSION_ID]['logged'] = getenv('REMOTE_USER');
@@ -866,6 +856,7 @@ if (isset($_POST['file'], $_POST['copy_to'], $_POST['finish'], $_POST['token']) 
     if ($copy_to != '') {
         $copy_to_path .= '/' . $copy_to;
     }
+    my_scandir($copy_to_path, $user_folder_arr); // #check acl
     if ($path == $copy_to_path) {
         fm_set_msg(lng('Paths must be not equal'), 'alert');
         $FM_PATH=FM_PATH; fm_redirect(FM_SELF_URL . '?p=' . urlencode($FM_PATH));
@@ -1372,17 +1363,14 @@ if (is_array($objects) && fm_is_exclude_items($current_path)) {
 
 function my_scandir($path, $user_folder_arr){
 
-    if(!$user_folder_arr){
+    if(is_null($user_folder_arr)){
         return scandir($path);
     }
 
     if($path==FM_ROOT_PATH){
         return $user_folder_arr;
 	}else{
-        trigger_error('##my_scandir $path=' . $path. '#FM_ROOT_PATH=' . FM_ROOT_PATH); // /var/www/html/user1/sub1
-
         foreach ($user_folder_arr as $user_folder) {
-            trigger_error('##my_scandir $user_folder=' . $user_folder);
             if (strpos($path."/", FM_ROOT_PATH.$user_folder)===0){
                 return scandir($path);    
             }
